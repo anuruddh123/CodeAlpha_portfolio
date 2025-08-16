@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ultra‑Premium 3D Portfolio — Satvik</title>
+  <title>My Portfolio</title>
   <meta name="description" content="Single‑file portfolio with Three.js animated background, Tailwind glass UI, and smooth scroll." />
   
 
@@ -104,25 +104,43 @@
   </div>
 
   <!-- Mobile Dropdown Menu -->
-  <div id="mobileMenu" class="hidden flex-col md:hidden bg-black/70 backdrop-blur-md border-t" style="border-color:var(--border)">
+  <div id="mobileMenu" class="hidden flex-col md:hidden bg-transparent backdrop-blur-md border-t transition-all duration-300 ease-in-out transform origin-top scale-y-0 opacity-0" style="border-color:var(--border)">
     <a href="#home" class="px-4 py-3 border-b border-gray-700">Home</a>
     <a href="#about" class="px-4 py-3 border-b border-gray-700">About</a>
     <a href="#skills" class="px-4 py-3 border-b border-gray-700">Skills</a>
     <a href="#projects" class="px-4 py-3 border-b border-gray-700">Projects</a>
     <a href="#contact" class="px-4 py-3">Contact</a>
-    <button id="themeToggleMobile" class="px-4 py-3 text-left border-t border-gray-700">Theme</button>
+   
   </div>
 </header>
 
-<!-- JS for Mobile Menu -->
+<!-- JS -->
 <script>
   const menuToggle = document.getElementById('menuToggle');
   const mobileMenu = document.getElementById('mobileMenu');
+  const themeToggle = document.getElementById('themeToggle');
+  const themeToggleMobile = document.getElementById('themeToggleMobile');
 
+  // Mobile menu toggle with animation
   menuToggle.addEventListener('click', () => {
-    mobileMenu.classList.toggle('hidden');
+    if (mobileMenu.classList.contains('hidden')) {
+      mobileMenu.classList.remove('hidden');
+      setTimeout(() => {
+        mobileMenu.classList.remove('scale-y-0', 'opacity-0');
+        mobileMenu.classList.add('scale-y-100', 'opacity-100');
+      }, 10);
+    } else {
+      mobileMenu.classList.remove('scale-y-100', 'opacity-100');
+      mobileMenu.classList.add('scale-y-0', 'opacity-0');
+      setTimeout(() => {
+        mobileMenu.classList.add('hidden');
+      }, 300); // match duration-300
+    }
   });
+
+ 
 </script>
+
 
 
  <!-- HERO -->
