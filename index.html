@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ultra‑Premium 3D Portfolio — Satvik</title>
+  <meta name="description" content="Single‑file portfolio with Three.js animated background, Tailwind glass UI, and smooth scroll." />
+  
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { inter: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          boxShadow: {
+            glow: '0 0 0 1px rgba(255,255,255,0.08) inset, 0 15px 35px rgba(0,0,0,0.45)',
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#0a0f1e; --card:rgba(255,255,255,0.06); --border:rgba(255,255,255,0.12);
+      --text:rgba(255,255,255,0.88); --muted:rgba(255,255,255,0.65);
+      --grad-a:#7c3aed; --grad-b:#06b6d4; /* purple → cyan */
+      --accent:#a78bfa; --ring:rgba(167,139,250,0.35);
+    }
+    body[data-theme="noir"]{
+      --bg:#0b0b0b; --card:rgba(255,255,255,0.06); --border:rgba(255,255,255,0.12);
+      --text:rgba(255,255,255,0.9); --muted:rgba(255,255,255,0.7);
+      --grad-a:#ffd700; --grad-b:#a855f7; /* gold → royal violet */
+      --accent:#f5d272; --ring:rgba(245,210,114,0.35);
+    }
+
+    html, body { height: 100%; scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui; }
+
+    /* 3D canvas behind everything */
+    #bg-scene { position: fixed; inset: 0; z-index: -2; }
+    /* soft vignette + grain overlay */
+    .fx-vignette { position: fixed; inset:0; pointer-events:none; z-index:-1;
+      background: radial-gradient(ellipse at center, rgba(255,255,255,0.12), transparent 60%);
+      mix-blend: overlay; }
+    .fx-grain { position: fixed; inset:0; pointer-events:none; z-index:-1; opacity:.08;
+      background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23n)"/></svg>'); }
+
+    .glass { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow, 0 0 1px #fff inset), 0 10px 30px rgba(0,0,0,.35);
+      border-radius: 1rem; }
+
+    .grad-text { background: linear-gradient(135deg, var(--grad-a), var(--grad-b)); -webkit-background-clip:text; background-clip:text; color: transparent; }
+
+    .tag { background: rgba(255,255,255,0.08); border: 1px solid var(--border); padding:.25rem .5rem; border-radius:.5rem; font-size:.75rem; }
+
+    .nav-dot { width: 10px; height: 10px; border-radius:9999px; background: rgba(255,255,255,.45); transition: transform .2s, background .2s; }
+    .nav-dot.active { transform: scale(1.25); background: #fff; }
+
+    /* section spacing */
+    section { scroll-margin-top: 96px; }
+  </style>
+</head>
+<body data-theme="aurora">
+  <!-- Three.js Background -->
+  <canvas id="bg-scene"></canvas>
+  <div class="fx-vignette"></div>
+  <div class="fx-grain"></div>
+
+ <!-- Navbar -->
+<header class="fixed top-0 left-0 w-full z-40 border-b" style="border-color:var(--border); background: rgba(0,0,0,.25); backdrop-filter: blur(10px)">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    
+    <!-- Logo -->
+    <div class="flex items-center gap-3">
+      <div class="h-8 w-8 flex items-center justify-center rounded-xl text-white font-bold" style="background:linear-gradient(135deg,var(--grad-a),var(--grad-b))">
+        A
+      </div>
+      <span class="font-semibold tracking-tight" style="color:var(--text)">Anuruddh</span>
+    </div>
+
+    <!-- Desktop Nav -->
+    <nav class="hidden md:flex items-center gap-1">
+      <a href="#home" class="px-3 py-2 rounded-lg text-sm hover:bg-white/10">Home</a>
+      <a href="#about" class="px-3 py-2 rounded-lg text-sm hover:bg-white/10">About</a>
+      <a href="#skills" class="px-3 py-2 rounded-lg text-sm hover:bg-white/10">Skills</a>
+      <a href="#projects" class="px-3 py-2 rounded-lg text-sm hover:bg-white/10">Projects</a>
+      <a href="#contact" class="px-3 py-2 rounded-lg text-sm hover:bg-white/10">Contact</a>
+    </nav>
+
+    <!-- Right Buttons -->
+    <div class="flex items-center gap-2">
+      <button id="themeToggle" class="px-3 py-2 rounded-lg text-sm border hidden md:inline-block" style="border-color:var(--border)">Theme</button>
+      <a href="#contact" class="px-3 py-2 rounded-lg text-sm hidden md:inline-block" style="background:linear-gradient(135deg,var(--grad-a),var(--grad-b))">Hire Me</a>
+
+      <!-- Mobile Menu Button -->
+      <button id="menuToggle" class="md:hidden px-3 py-2 rounded-lg text-sm border" style="border-color:var(--border)">
+        ☰
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile Dropdown Menu -->
+  <div id="mobileMenu" class="hidden flex-col md:hidden bg-black/70 backdrop-blur-md border-t" style="border-color:var(--border)">
+    <a href="#home" class="px-4 py-3 border-b border-gray-700">Home</a>
+    <a href="#about" class="px-4 py-3 border-b border-gray-700">About</a>
+    <a href="#skills" class="px-4 py-3 border-b border-gray-700">Skills</a>
+    <a href="#projects" class="px-4 py-3 border-b border-gray-700">Projects</a>
+    <a href="#contact" class="px-4 py-3">Contact</a>
+    <button id="themeToggleMobile" class="px-4 py-3 text-left border-t border-gray-700">Theme</button>
+  </div>
+</header>
+
+<!-- JS for Mobile Menu -->
+<script>
+  const menuToggle = document.getElementById('menuToggle');
+  const mobileMenu = document.getElementById('mobileMenu');
+
+  menuToggle.addEventListener('click', () => {
+    mobileMenu.classList.toggle('hidden');
+  });
+</script>
+
+
+ <!-- HERO -->
+<section id="home" 
+  class="min-h-[86vh] flex items-center pt-24 md:pt-28">
+  <!-- pt-24 => mobile/tablet ke liye space, md:pt-28 => desktop me thoda zyada -->
+
+  <div class="max-w-6xl mx-auto px-4 grid md:grid-cols-2 gap-10 items-center">
+    <!-- Left content -->
+    <div>
+      <span class="inline-flex items-center gap-2 text-xs uppercase tracking-widest px-3 py-1 rounded-full border"
+        style="border-color:var(--border); color:var(--muted); background:rgba(255,255,255,.06)">
+        Available for freelance — 2025
+      </span>
+
+      <h1 class="mt-4 text-3xl sm:text-4xl md:text-6xl font-extrabold leading-tight tracking-tight">
+        <span class="grad-text">Crafting Ultra-Premium Web Experiences</span>
+      </h1>
+
+      <p class="mt-4 text-base sm:text-lg" style="color:var(--muted)">
+        I design and build delightful digital products with performance, polish and playful 3D.
+        From lightning-fast landing pages to production apps, I bring brands to life with motion and depth.
+      </p>
+
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a href="#projects" 
+           class="px-4 py-2 rounded-lg text-sm sm:text-base"
+           style="background:linear-gradient(135deg,var(--grad-a),var(--grad-b))">
+           View Projects
+        </a>
+        <a href="#contact" 
+           class="px-4 py-2 rounded-lg border text-sm sm:text-base"
+           style="border-color:var(--border)">
+           Let's Build
+        </a>
+      </div>
+
+      <div class="mt-6 flex flex-wrap gap-3 text-xs" style="color:var(--muted)">
+        <span class="tag">3D</span>
+        <span class="tag">Three.js</span>
+        <span class="tag">Tailwind</span>
+        <span class="tag">Accessible</span>
+      </div>
+    </div>
+
+    <!-- Right content (glass grid) -->
+    <div class="glass p-4 sm:p-6 md:p-8">
+      <div class="grid grid-cols-3 gap-3 sm:gap-4">
+        <div class="aspect-square rounded-xl border flex items-center justify-center text-xs sm:text-sm"
+          style="border-color:var(--border); background:rgba(255,255,255,.06); color:var(--muted)">Performance</div>
+        <div class="aspect-square rounded-xl border flex items-center justify-center text-xs sm:text-sm"
+          style="border-color:var(--border); background:rgba(255,255,255,.06); color:var(--muted)">Aesthetics</div>
+        <div class="aspect-square rounded-xl border flex items-center justify-center text-xs sm:text-sm"
+          style="border-color:var(--border); background:rgba(255,255,255,.06); color:var(--muted)">Reliability</div>
+        <div class="aspect-square rounded-xl border flex items-center justify-center text-xs sm:text-sm"
+          style="border-color:var(--border); background:rgba(255,255,255,.06); color:var(--muted)">Motion</div>
+        <div class="aspect-square rounded-xl border flex items-center justify-center text-xs sm:text-sm"
+          style="border-color:var(--border); background:rgba(255,255,255,.06); color:var(--muted)">3D</div>
+        <div class="aspect-square rounded-xl border flex items-center justify-center text-xs sm:text-sm"
+          style="border-color:var(--border); background:rgba(255,255,255,.06); color:var(--muted)">DX</div>
+        <div class="aspect-square rounded-xl border flex items-center justify-center text-xs sm:text-sm"
+          style="border-color:var(--border); background:rgba(255,255,255,.06); color:var(--muted)">Security</div>
+        <div class="aspect-square rounded-xl border flex items-center justify-center text-xs sm:text-sm"
+          style="border-color:var(--border); background:rgba(255,255,255,.06); color:var(--muted)">UX</div>
+        <div class="aspect-square rounded-xl border flex items-center justify-center text-xs sm:text-sm"
+          style="border-color:var(--border); background:rgba(255,255,255,.06); color:var(--muted)">Scale</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+  <!-- ABOUT -->
+  <section id="about" class="py-24 md:py-32">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="mb-3 text-xs uppercase tracking-widest flex items-center gap-2" style="color:var(--muted)">
+        <span>About</span>
+      </div>
+      <h2 class="text-3xl md:text-5xl font-bold grad-text">Hi, I'm Anuruddh — Java Full Stack Developer Trainee</h2>
+      <p class="mt-3 max-w-3xl leading-relaxed" style="color:var(--muted)">I’m Anuruddh Tiwari, a passionate and detail-oriented Computer Science & Engineering student, currently pursuing my B.Tech from Lucknow Institute of Technology.When I’m not coding, you’ll probably find me experimenting with new design ideas, learning cutting-edge tools, or brainstorming innovative solutions for real-world problems. My goal is to build digital products that inspire, engage, and deliver impact.</p>
+      <div class="mt-8 grid md:grid-cols-3 gap-6">
+        <div class="glass p-6 md:p-8 md:col-span-2">
+          <h3 class="text-xl font-semibold">Philosophy</h3>
+          <p class="mt-3" style="color:var(--muted)">I believe technology is not just about writing code — it’s about crafting experiences that connect people, solve problems, and spark emotions.
+For me, every project is a blend of logic and art — where clean, efficient code meets intuitive, elegant design.</p>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <span class="tag">HTML</span><span class="tag">CSS</span><span class="tag">JavaScript</span><span class="tag">Three.js</span><span class="tag">React</span><span class="tag">Java</span>
+          </div>
+        </div>
+        <div class="glass p-6 md:p-8">
+          <h3 class="text-xl font-semibold">Quick Stats</h3>
+          <ul class="mt-3 space-y-2" style="color:var(--muted)">
+            <li>4+ months building UIs</li>
+            <li>5+ projects</li>
+            <li>3D Responsive</li>
+            <li>Based in India (IST)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SKILLS -->
+  <section id="skills" class="py-24 md:py-32">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="mb-3 text-xs uppercase tracking-widest" style="color:var(--muted)">Capabilities</div>
+      <h2 class="text-3xl md:text-5xl font-bold grad-text">What I do best</h2>
+      <p class="mt-3 max-w-3xl" style="color:var(--muted)">From idea to interactive, I ship production‑ready work with polish.</p>
+      <div class="mt-8 grid md:grid-cols-3 gap-6">
+        <div class="glass p-6 md:p-8">
+          <h3 class="text-xl font-semibold">Frontend Development</h3>
+          <p class="mt-2" style="color:var(--muted)">I craft interactive, responsive, and visually engaging interfaces using modern web technologies. My focus is on delivering smooth user experiences, clean layouts, and animations that bring digital products to life.</p>
+          <ul class="mt-3 grid grid-cols-2 gap-2 text-sm" style="color:var(--muted)">
+            <li class="tag">Semantic HTML</li>
+            <li class="tag">Tailwind</li>
+            <li class="tag">JavaScript</li>
+            <li class="tag">React</li>
+          </ul>
+        </div>
+        <div class="glass p-6 md:p-8">
+          <h3 class="text-xl font-semibold">WebGL & 3D</h3>
+          <p class="mt-2" style="color:var(--muted)">I create immersive 3D experiences and interactive visualizations using WebGL and Three.js, adding depth, motion, and interactivity to web projects. My goal is to transform ordinary websites into engaging, dynamic environments that captivate users..</p>
+          <ul class="mt-3 grid grid-cols-2 gap-2 text-sm" style="color:var(--muted)">
+            <li class="tag">Three.js</li>
+            <li class="tag">GLSL</li>
+            <li class="tag">DPR aware</li>
+            <li class="tag">Post‑FX</li>
+          </ul>
+        </div>
+        <div class="glass p-6 md:p-8">
+          <h3 class="text-xl font-semibold">Backend Development</h3>
+          <p class="mt-2" style="color:var(--muted)">I build robust, secure, and scalable server-side solutions that ensure seamless performance and reliability. From designing efficient database structures to developing RESTful APIs, my focus is on creating a strong backbone that powers smooth and responsive applications.</p>
+          <ul class="mt-3 grid grid-cols-2 gap-2 text-sm" style="color:var(--muted)">
+            <li class="tag">Spring</li>
+            <li class="tag">Spring Boot</li>
+            <li class="tag">Node.JS</li>
+            <li class="tag">MongoDB</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+ <!-- PROJECTS -->
+<section id="projects" class="py-24 md:py-32">
+  <div class="max-w-6xl mx-auto px-4">
+    <!-- Heading -->
+    <div class="mb-3 text-xs uppercase tracking-widest" style="color:var(--muted)">Showcase</div>
+    <h2 class="text-3xl md:text-5xl font-bold grad-text">Selected Projects</h2>
+    <p class="mt-3 max-w-3xl" style="color:var(--muted)">
+      Here are a few of my recent builds that strike a perfect balance between aesthetics, performance, and usability.
+      Every project is crafted with precision, scalability, and long-term maintainability in mind.
+    </p>
+
+    <!-- Project Cards -->
+    <div class="mt-10 grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      
+      <!-- Project 1 -->
+      <div class="glass p-6 md:p-8 flex flex-col justify-between">
+        <div>
+          <div class="aspect-video rounded-xl border mb-3 transition-transform duration-300 hover:scale-105" 
+               style="border-color:var(--border); background:linear-gradient(135deg,rgba(255,255,255,.1),transparent)">
+               <img src="gallery.jfif" alt="Gallery Image"
+     class="w-full max-w-md mx-auto rounded-2xl shadow-xl hover:scale-105 transition-transform duration-300 object-cover"/>
+
+          </div>
+          <h3 class="text-white font-semibold text-lg">Image Gallery</h3>
+          <p class="mt-2" style="color:var(--muted)">
+            A visually appealing and responsive image gallery built to showcase projects, photography, or artwork. It features smooth hover effects, 3D tilt animations, and lightbox previews for an immersive browsing experience.
+          </p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <span class="tag">HTML 5 </span>
+            <span class="tag">CSS</span>
+            <span class="tag">JAVASCRIPT</span>
+          </div>
+        </div>
+        <a href="http://picnest.netlify.app" target="_blank" 
+           class="mt-4 px-4 py-2 rounded-lg text-sm text-white text-center"
+           style="background:linear-gradient(135deg,var(--grad-a),var(--grad-b))">
+          View Project
+        </a>
+      </div>
+
+      <!-- Project 2 -->
+      <div class="glass p-6 md:p-8 flex flex-col justify-between">
+        <div>
+          <div class="aspect-video rounded-xl border mb-3 transition-transform duration-300 hover:scale-105" 
+               style="border-color:var(--border); background:linear-gradient(135deg,rgba(255,255,255,.1),transparent)">
+                <img src="quizapp.jfif" alt="Quiz App"
+     class="w-full max-w-md mx-auto rounded-2xl shadow-xl hover:scale-105 transition-transform duration-300 object-cover"/>
+
+          </div>
+          <h3 class="text-white font-semibold text-lg">Quiz App</h3>
+          <p class="mt-2" style="color:var(--muted)">
+           An engaging, responsive quiz app with 3D flip transitions, timed questions, and score tracking, built with HTML, Tailwind CSS, and JavaScript for a smooth, interactive experience.
+
+         </p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <span class="tag">HTML</span>
+            <span class="tag">CSS</span>
+            <span class="tag">JAVASCRIPT</span>
+          </div>
+        </div>
+        <a href="http://quiztales.netlify.app" target="_blank" 
+           class="mt-4 px-4 py-2 rounded-lg text-sm text-white text-center"
+           style="background:linear-gradient(135deg,var(--grad-a),var(--grad-b))">
+          View Project
+        </a>
+      </div>
+
+      <!-- Project 3 -->
+      <div class="glass p-6 md:p-8 flex flex-col justify-between">
+        <div>
+          <div class="aspect-video rounded-xl border mb-3 transition-transform duration-300 hover:scale-105" 
+               style="border-color:var(--border); background:linear-gradient(135deg,rgba(255,255,255,.1),transparent)">
+                <img src="portfolio.webp" alt="Portfolio"
+     class="w-full max-w-md mx-auto rounded-2xl shadow-xl hover:scale-105 transition-transform duration-300 object-cover"/>
+          </div>
+          <h3 class="text-white font-semibold text-lg">Portfolio</h3>
+          <p class="mt-2" style="color:var(--muted)">
+            A modern, responsive portfolio with 3D animated backgrounds, smooth transitions, and a glassmorphism UI, built using HTML, Tailwind CSS, and JavaScript to showcase skills and projects in an ultra-premium style.
+          </p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <span class="tag">HTML</span>
+            <span class="tag">CSS</span>
+            <span class="tag">JAVASCRIPT</span>
+          </div>
+        </div>
+        <a href="#home" target="_blank" 
+           class="mt-4 px-4 py-2 rounded-lg text-sm text-white text-center"
+           style="background:linear-gradient(135deg,var(--grad-a),var(--grad-b))">
+          View Project
+        </a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+ <!-- CONTACT -->
+<!-- CONTACT -->
+<section id="contact" class="py-24 md:py-32">
+  <div class="max-w-6xl mx-auto px-4">
+    <div class="mb-3 text-xs uppercase tracking-widest" style="color:var(--muted)">Contact</div>
+    <h2 class="text-3xl md:text-5xl font-bold grad-text">Let's connect</h2>
+    <p class="mt-3 max-w-3xl" style="color:var(--muted)">Share a few details and I’ll reply within 24 hours.</p>
+
+    <div class="mt-12 grid md:grid-cols-2 gap-10 items-center">
+      <!-- Left Side Animation -->
+      <div class="flex justify-center">
+        <div class="w-full max-w-sm aspect-square relative">
+          <div class="absolute inset-0 bg-gradient-to-tr from-pink-500 via-purple-500 to-indigo-500 rounded-full animate-pulse blur-2xl opacity-50"></div>
+          <div class="absolute inset-8 rounded-full border-4 border-white/20 animate-spin-slow"></div>
+          <div class="absolute inset-16 rounded-full border-4 border-white/10 animate-spin-reverse-slow"></div>
+          <div class="absolute inset-24 rounded-full border-4 border-dashed border-white/30 animate-bounce-slow"></div>
+        </div>
+      </div>
+
+      <!-- Right Side Form -->
+      <div class="glass p-6 md:p-10">
+        <form id="contact-form" class="grid gap-6">
+          <div>
+            <label class="text-sm" style="color:var(--muted)">Your name</label>
+            <input type="text" name="from_name" placeholder="e.g., Anuruddh" required class="mt-2 w-full px-3 py-2 rounded-lg border bg-white/5" style="border-color:var(--border); color:var(--text)"/>
+          </div>
+          <div>
+            <label class="text-sm" style="color:var(--muted)">Email</label>
+            <input type="email" name="from_email" placeholder="you@example.com" required class="mt-2 w-full px-3 py-2 rounded-lg border bg-white/5" style="border-color:var(--border); color:var(--text)"/>
+          </div>
+          <div>
+            <label class="text-sm" style="color:var(--muted)">Project brief</label>
+            <textarea name="message" rows="5" placeholder="Timeline, budget, goals" required class="mt-2 w-full px-3 py-2 rounded-lg border bg-white/5" style="border-color:var(--border); color:var(--text)"></textarea>
+          </div>
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="text-sm flex flex-col sm:flex-row sm:gap-4" style="color:var(--muted)">
+              <span>✉️ anuruddhtiwari2022@gmail.com</span>
+            </div>
+            <button type="submit" class="px-4 py-2 rounded-lg text-white" style="background:linear-gradient(135deg,var(--grad-a),var(--grad-b))">Send</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ✅ Only one EmailJS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+<script>
+  // Initialize EmailJS
+  (function(){
+    emailjs.init("mhwJzd73WnwkWLEYr"); // 🔑 apna Public Key
+  })();
+
+  // Form submit handler
+  document.getElementById("contact-form").addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    emailjs.sendForm("service_4yg23qo", "template_r4mjvqk", this)
+      .then(function() {
+        alert("✅ Message sent successfully!");
+        document.getElementById("contact-form").reset();
+      }, function(error) {
+        alert("❌ Failed to send message. Please try again.");
+        console.error("EmailJS Error:", error);
+      });
+  });
+</script>
+
+
+
+<style>
+@keyframes spin-slow {
+  0% {transform: rotate(0deg);}
+  100% {transform: rotate(360deg);}
+}
+@keyframes spin-reverse-slow {
+  0% {transform: rotate(360deg);}
+  100% {transform: rotate(0deg);}
+}
+@keyframes bounce-slow {
+  0%, 100% {transform: translateY(0);}
+  50% {transform: translateY(-10px);}
+}
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+.animate-spin-reverse-slow {
+  animation: spin-reverse-slow 15s linear infinite;
+}
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
+}
+</style>
+
+
+<!-- Footer -->
+<footer class="border-t border-white/10 bg-gradient-to-r from-black/50 via-black/30 to-black/50 backdrop-blur-lg">
+  <div class="max-w-6xl mx-auto px-6 py-8 md:py-10 flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-gray-400">
+    
+    <!-- Left Side -->
+    <div class="flex items-center gap-3">
+      <div class="h-8 w-8 flex items-center justify-center rounded-full text-white font-bold text-lg shadow-lg" 
+           style="background:linear-gradient(135deg,var(--grad-a),var(--grad-b))">
+        A
+      </div>
+      <span class="text-gray-300">© <span id="year"></span> Anuruddh | All rights reserved</span>
+    </div>
+
+    <!-- Center Links -->
+    <div class="flex flex-wrap items-center gap-5 text-gray-400">
+      <a href="#about" class="hover:text-white transition">About</a>
+      <a href="#projects" class="hover:text-white transition">Projects</a>
+      <a href="#contact" class="hover:text-white transition">Contact</a>
+    </div>
+
+    <!-- Right Side Social Icons -->
+    <div class="flex items-center gap-4">
+      <a href="https://github.com/" target="_blank" class="hover:scale-110 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 .5C5.73.5.5 5.73.5 12a11.5 11.5 0 0 0 7.84 10.93c.57.1.78-.25.78-.56v-2.2c-3.19.69-3.87-1.54-3.87-1.54-.52-1.33-1.27-1.69-1.27-1.69-1.04-.72.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.68 1.24 3.34.95.1-.74.4-1.24.72-1.53-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.28 1.18-3.08-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.15 1.18a10.9 10.9 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.58.23 2.75.11 3.04.73.8 1.18 1.82 1.18 3.08 0 4.43-2.68 5.4-5.23 5.7.41.35.77 1.04.77 2.1v3.12c0 .31.21.66.79.55A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5z"/>
+        </svg>
+      </a>
+      <a href="https://linkedin.com/" target="_blank" class="hover:scale-110 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M19 0h-14C2.243 0 0 2.243 0 5v14c0 2.757 2.243 5 5 5h14c2.757 
+                   0 5-2.243 5-5V5c0-2.757-2.243-5-5-5zM8.339 18.339H5.661V9.339h2.678v9zm-1.339-10.5c-.857 
+                   0-1.55-.693-1.55-1.55 0-.857.693-1.55 1.55-1.55s1.55.693 
+                   1.55 1.55c0 .857-.693 1.55-1.55 1.55zM18.339 
+                   18.339h-2.678v-4.5c0-1.074-.022-2.456-1.497-2.456-1.497 
+                   0-1.726 1.169-1.726 2.381v4.575h-2.678V9.339h2.571v1.229h.036c.358-.678 
+                   1.23-1.393 2.532-1.393 2.709 0 3.208 1.782 3.208 4.098v5.066z"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById("year").textContent = new Date().getFullYear();
+</script>
+
+
+  <!-- Three.js CDN -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
+  <!-- Main JS (inline) -->
+  <script>
+    // ====== UTIL ======
+    const yearEl = document.getElementById('year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+    // Smooth active dot nav
+    const sections = ['home','about','skills','projects','contact'];
+    const dots = Array.from(document.querySelectorAll('#dotnav a'));
+    const activate = (id)=>{ dots.forEach((a,i)=> a.classList.toggle('active', sections[i]===id)); }
+    const onScroll = () => {
+      let current = 'home';
+      for (const id of sections){
+        const el = document.getElementById(id);
+        if (!el) continue; const top = el.getBoundingClientRect().top;
+        if (top <= innerHeight*0.25) current = id;
+      }
+      activate(current);
+    };
+    addEventListener('scroll', onScroll, { passive:true }); onScroll();
+
+    // Theme toggle (Aurora <-> Gold Noir)
+    const themeBtn = document.getElementById('themeToggle');
+    themeBtn.addEventListener('click',()=>{
+      const cur = document.body.getAttribute('data-theme');
+      document.body.setAttribute('data-theme', cur==='noir' ? 'aurora' : 'noir');
+    });
+
+    // ====== THREE.JS BACKGROUND ======
+    const canvas = document.getElementById('bg-scene');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 100);
+    camera.position.set(0, 0, 8);
+
+    function onResize(){
+      const w = innerWidth, h = innerHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w/h; camera.updateProjectionMatrix();
+    }
+    addEventListener('resize', onResize); onResize();
+
+    // Lights
+    const amb = new THREE.AmbientLight(0xffffff, 0.7); scene.add(amb);
+    const pl = new THREE.PointLight(0x99ccff, 2, 10); pl.position.set(0,0,-1); scene.add(pl);
+
+    // Shader gradient plane (subtle waving)
+    const vtx = `
+      varying vec2 vUv; uniform float uTime;
+      void main(){ vUv = uv; vec3 p = position;
+        float w = sin(p.x*0.6 + uTime*0.8)*0.15 + cos(p.y*0.9 + uTime*0.6)*0.15;
+        p.z += w; gl_Position = projectionMatrix * modelViewMatrix * vec4(p,1.0); }
+    `;
+    const frg = `
+      varying vec2 vUv; uniform float uTime; uniform vec3 uA; uniform vec3 uB;
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+      void main(){ vec2 uv = vUv; float n = hash(uv*5.0 + uTime*0.05);
+        vec3 col = mix(uA, uB, smoothstep(0.0,1.0,uv.y + n*0.12));
+        gl_FragColor = vec4(col, 0.70); }
+    `;
+    const planeGeo = new THREE.PlaneGeometry(30, 18, 64, 64);
+    const mat = new THREE.ShaderMaterial({
+      uniforms:{ uTime:{value:0}, uA:{value:new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--grad-a'))}, uB:{value:new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--grad-b'))} },
+      vertexShader:vtx, fragmentShader:frg, transparent:true, depthWrite:false
+    });
+    const plane = new THREE.Mesh(planeGeo, mat); plane.position.set(0,0,-8); scene.add(plane);
+
+    // Particle ring field
+    const COUNT = 700;
+    const positions = new Float32Array(COUNT*3);
+    for (let i=0;i<COUNT;i++){
+      const r = 6 + Math.random()*8; const a = Math.random()*Math.PI*2; const y = (Math.random()-.5)*8;
+      positions[i*3+0] = Math.cos(a)*r; positions[i*3+1] = y; positions[i*3+2] = Math.sin(a)*r;
+    }
+    const pGeo = new THREE.BufferGeometry(); pGeo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+    const pMat = new THREE.PointsMaterial({ size:0.025, color:0xffffff, transparent:true, opacity:0.85, sizeAttenuation:true });
+    const points = new THREE.Points(pGeo, pMat); scene.add(points);
+
+    // Animate
+    const clock = new THREE.Clock();
+    function tick(){
+      const t = clock.getElapsedTime();
+      mat.uniforms.uTime.value = t; points.rotation.y = t*0.06;
+      renderer.render(scene, camera); requestAnimationFrame(tick);
+    }
+    tick();
+
+    // Update shader colors on theme change
+    const obs = new MutationObserver(()=>{
+      const cs = getComputedStyle(document.documentElement);
+      mat.uniforms.uA.value.setStyle(cs.getPropertyValue('--grad-a'));
+      mat.uniforms.uB.value.setStyle(cs.getPropertyValue('--grad-b'));
+    });
+    obs.observe(document.body, { attributes:true, attributeFilter:['data-theme'] });
+  </script>
+</body>
+</html>
